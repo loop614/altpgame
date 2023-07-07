@@ -7,7 +7,7 @@
 
 #include "../common/common.h"
 
-void do_move(uint8* boardp, uint8* targetp, const uint8 targeth, const uint8 targetw, uint8* numberh, uint8* numberw, uint8* emptyh, uint8* emptyw);
-void move_zero_to_number(uint8* boardp, const uint8 numberh, const uint8 numberw, uint8* emptyh, uint8* emptyw);
+void do_move(uint8* boardp, uint8* targetp, const Point* target, Point* number, Point* zero);
+void move_zero_to_number(uint8* boardp, const Point number, Point* zero);
 
 #endif //ALTPRO_MOVE_H

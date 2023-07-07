@@ -7,182 +7,238 @@
 #include "move.h"
 #include "../operation/operation.h"
 
-static void walk_zero_around(uint8 *boardp, uint8 *emptyh, uint8 *emptyw, enum_direction direction)
+typedef struct {
+    bool target_left;
+    bool target_right;
+    bool target_up;
+    bool target_down;
+} TargetZeroPosition;
+
+typedef struct {
+    bool zero_up;
+    bool zero_down;
+    bool zero_left;
+    bool zero_right;
+} ZeroNumberPosition;
+
+typedef struct {
+    bool up;
+    bool right;
+    bool down;
+    bool left;
+} ZeroGo;
+
+typedef struct {
+    bool up;
+    bool right;
+    bool down;
+    bool left;
+} ConditionStop;
+
+static void hydrate_target_zero_position(const Point *target, const Point *zero, TargetZeroPosition *targetZeroPosition);
+static void hydrate_zero_number_position(const Point *number, const Point *zero, ZeroNumberPosition *zeroNumberPosition);
+static void hydrate_zero_go(const Point *number, const Point *zero, ZeroNumberPosition zeroNumberPosition, TargetZeroPosition targetZeroPosition, ZeroGo *zeroGo);
+static void hydrate_condition_stop(const Point *target, const Point *number, const Point *zero, ZeroNumberPosition zeroNumberPosition, ConditionStop *conditionStop);
+static void do_walk_zero_around(uint8 *boardp, Point* zero, EnumDirection direction);
+static bool move_zero(uint8 *boardp, Point *zero, ZeroGo *zeroGo);
+static bool walk_zero_around(uint8 *boardp, const Point *target, Point *zero, ZeroNumberPosition *zeroNumberPosition);
+static bool check_break_condition(uint8 *boardp, Point *number, Point *zero, ConditionStop *conditionStop);
+
+void move_zero_to_number(uint8* boardp, const Point number, Point* zero)
+{
+    while(number.height > zero->height && !((number.height == zero->height + 1) && number.width == zero->width)) {
+        number_go_direction(boardp, zero, DIRECTION_DOWN);
+    }
+
+    while(number.height < zero->height && !((number.height == zero->height - 1) && number.width == zero->width)) {
+        number_go_direction(boardp, zero, DIRECTION_UP);
+    }
+
+    while(number.width - 1 > zero->width && !((number.height == zero->height) && number.width == zero->width + 1)) {
+        number_go_direction(boardp, zero, DIRECTION_RIGHT);
+    }
+
+    while(number.height < zero->height && !((number.height == zero->height - 1) && number.width == zero->width)) {
+        number_go_direction(boardp, zero, DIRECTION_LEFT);
+    }
+}
+
+void do_move(uint8* boardp, uint8* targetp, const Point* target, Point* number, Point* zero)
+{
+    ZeroNumberPosition zeroNumberPosition = {0};
+    TargetZeroPosition targetZeroPosition = {0};
+    ZeroGo zeroGo = {0};
+    ConditionStop conditionStop = {0};
+
+    while (true) {
+        hydrate_target_zero_position(target, zero, &targetZeroPosition);
+        hydrate_zero_number_position(number, zero, &zeroNumberPosition);
+        hydrate_zero_go(number, zero, zeroNumberPosition, targetZeroPosition, &zeroGo);
+        hydrate_condition_stop(target, number, zero, zeroNumberPosition, &conditionStop);
+
+        if (check_break_condition(boardp, number, zero, &conditionStop)) {
+            break;
+        }
+        if (walk_zero_around(boardp, target, zero, &zeroNumberPosition)) {
+            continue;
+        }
+        (void) move_zero(boardp, zero, &zeroGo);
+    }
+}
+
+static bool check_break_condition(uint8 *boardp, Point *number, Point *zero, ConditionStop *conditionStop) {
+    if ((*conditionStop).down) {
+        // just up, so move zero down
+        number->height--;
+        number_go_direction(boardp, zero, DIRECTION_DOWN);
+        return true;
+    }
+    if ((*conditionStop).right) {
+        // just left, so move zero right
+        number->width--;
+        number_go_direction(boardp, zero, DIRECTION_RIGHT);
+        return true;
+    }
+    if ((*conditionStop).up) {
+        // just down, so move zero up
+        number->height++;
+        number_go_direction(boardp, zero, DIRECTION_UP);
+        return true;
+    }
+    if ((*conditionStop).left) {
+        // just right, so move zero left
+        number->width++;
+        number_go_direction(boardp, zero, DIRECTION_LEFT);
+        return true;
+    }
+    return false;
+}
+
+static bool walk_zero_around(uint8 *boardp, const Point *target, Point *zero, ZeroNumberPosition *zeroNumberPosition) {
+    if (zero->width == target->width && (*zeroNumberPosition).zero_down) {
+        do_walk_zero_around(boardp, zero, DIRECTION_UP);
+        return true;
+    }
+
+    if (zero->height == target->height && (*zeroNumberPosition).zero_right) {
+        do_walk_zero_around(boardp, zero, DIRECTION_LEFT);
+        return true;
+    }
+
+    if (zero->height == target->height && (*zeroNumberPosition).zero_left) {
+        do_walk_zero_around(boardp, zero, DIRECTION_RIGHT);
+        return true;
+    }
+
+    if (zero->width == target->width && (*zeroNumberPosition).zero_up) {
+        do_walk_zero_around(boardp, zero, DIRECTION_DOWN);
+        return true;
+    }
+    return false;
+}
+
+static bool move_zero(uint8 *boardp, Point *zero, ZeroGo *zeroGo) {
+    if ((*zeroGo).left) {
+        number_go_direction(boardp, zero, DIRECTION_LEFT);
+        return true;
+    }
+    if ((*zeroGo).right) {
+        number_go_direction(boardp, zero, DIRECTION_RIGHT);
+        return true;
+    }
+    if ((*zeroGo).down) {
+        number_go_direction(boardp, zero, DIRECTION_DOWN);
+        return true;
+    }
+    if ((*zeroGo).up)  {
+        number_go_direction(boardp, zero, DIRECTION_UP);
+        return true;
+    }
+    return false;
+}
+
+static void hydrate_condition_stop(const Point *target, const Point *number, const Point *zero, ZeroNumberPosition zeroNumberPosition, ConditionStop *conditionStop) {
+    (*conditionStop).down = zeroNumberPosition.zero_up && target->height < number->height && zero->height == number->height - 1;
+    (*conditionStop).right = zeroNumberPosition.zero_left && target->width < number->width && zero->width == number->width - 1;
+    (*conditionStop).up = zeroNumberPosition.zero_down && target->height > number->height && zero->height == number->height + 1;
+    (*conditionStop).left = zeroNumberPosition.zero_right && target->width > number->width && zero->width == number->width + 1;
+}
+
+static void hydrate_zero_go(const Point *number, const Point *zero, ZeroNumberPosition zeroNumberPosition, TargetZeroPosition targetZeroPosition, ZeroGo *zeroGo) {
+    (*zeroGo).left = targetZeroPosition.target_left && !zeroNumberPosition.zero_right && zero->width != number->width - 1;
+    (*zeroGo).up = targetZeroPosition.target_up && !zeroNumberPosition.zero_down && zero->height != number->height - 1;
+    (*zeroGo).right = targetZeroPosition.target_right && !zeroNumberPosition.zero_left && zero->width != number->width + 1;
+    (*zeroGo).down = targetZeroPosition.target_down && !zeroNumberPosition.zero_up && zero->height != number->height + 1;
+}
+
+static void hydrate_zero_number_position(const Point *number, const Point *zero, ZeroNumberPosition *zeroNumberPosition) {
+    (*zeroNumberPosition).zero_down = number->height + 1 == zero->height && number->width == zero->width;
+    (*zeroNumberPosition).zero_left = number->height == zero->height && number->width == zero->width + 1;
+    (*zeroNumberPosition).zero_right = number->height == zero->height && number->width == zero->width - 1;
+    (*zeroNumberPosition).zero_up = number->height - 1 == zero->height && number->width == zero->width;
+}
+
+static void hydrate_target_zero_position(const Point *target, const Point *zero, TargetZeroPosition *targetZeroPosition) {
+    (*targetZeroPosition).target_left = target->width < zero->width;
+    (*targetZeroPosition).target_right = target->width > zero->width;
+    (*targetZeroPosition).target_up = target->height < zero->height;
+    (*targetZeroPosition).target_down = target->height > zero->height;
+}
+
+static void do_walk_zero_around(uint8 *boardp, Point* zero, EnumDirection direction)
 {
     if (direction == DIRECTION_UP) {
-        if (*emptyw < BOARD_WIDTH - 1 && *emptyh - 1 > 0) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
+        if (zero->width < BOARD_WIDTH - 1 && zero->height - 1 > 0) {
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
         } else {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
         }
     }
     if (direction == DIRECTION_LEFT) {
-        if (*emptyh < BOARD_HEIGHT - 1 && *emptyw - 1 > 0) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
+        if (zero->height < BOARD_HEIGHT - 1 && zero->width - 1 > 0) {
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_UP);
         } else {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
         }
     }
 
     if (direction == DIRECTION_RIGHT) {
-        if (*emptyh < BOARD_HEIGHT - 1 && *emptyw - 1 > 0) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
+        if (zero->height < BOARD_HEIGHT - 1 && zero->width - 1 > 0) {
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_UP);
         } else {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_UP);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
         }
     }
 
     if (direction == DIRECTION_DOWN) {
-        if (*emptyw < BOARD_WIDTH - 1 && *emptyh - 1 > 0) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
+        if (zero->width < BOARD_WIDTH - 1 && zero->height - 1 > 0) {
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
         } else {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-        }
-    }
-}
-
-void move_zero_to_number(uint8* boardp, const uint8 numberh, const uint8 numberw, uint8* emptyh, uint8* emptyw)
-{
-    while(numberh > *emptyh && !((numberh == (*emptyh) + 1) && numberw == *emptyw)) {
-        number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-    }
-
-    while(numberh < *emptyh && !((numberh == (*emptyh) - 1) && numberw == *emptyw)) {
-        number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-    }
-
-    while(numberw - 1 > *emptyw && !((numberh == *emptyh) && numberw == (*emptyw) + 1)) {
-        number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-    }
-
-    while(numberh < *emptyh && !((numberh == (*emptyh) - 1) && numberw == *emptyw)) {
-        number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-    }
-}
-
-void do_move(uint8* boardp, uint8* targetp, const uint8 targeth, const uint8 targetw, uint8* numberh, uint8* numberw, uint8* emptyh, uint8* emptyw) {
-    bool zero_go_left = true;
-    bool zero_go_up = true;
-    bool zero_go_right = true;
-    bool zero_go_down = true;
-    bool condition_stop_left = false;
-    bool condition_stop_up = false;
-    bool condition_stop_right = false;
-    bool condition_stop_down = false;
-    bool zero_up_of_number = false;
-    bool zero_down_of_number = false;
-    bool zero_left_of_number = false;
-    bool zero_right_of_number = false;
-    bool target_left_of_zero = false;
-    bool target_right_of_zero = false;
-    bool target_up_of_zero = false;
-    bool target_down_of_zero = false;
-
-    while (true) {
-        target_left_of_zero = targetw < *emptyw;
-        target_right_of_zero = targetw > *emptyw;
-        target_up_of_zero = targeth < *emptyh;
-        target_down_of_zero = targeth > *emptyh;
-
-        zero_down_of_number = (*numberh)+1 == *emptyh && *numberw == *emptyw;
-        zero_left_of_number = (*numberh == *emptyh && *numberw == (*emptyw)+1);
-        zero_right_of_number = (*numberh == *emptyh && *numberw == (*emptyw)-1);
-        zero_up_of_number = (*numberh)-1 == *emptyh && *numberw == *emptyw;
-
-        zero_go_left = target_left_of_zero && !zero_right_of_number && *emptyw != (*numberw)-1;
-        zero_go_up = target_up_of_zero && !zero_down_of_number && *emptyh != (*numberh)-1;
-        zero_go_right = target_right_of_zero && !zero_left_of_number && *emptyw != (*numberw)+1;
-        zero_go_down = target_down_of_zero && !zero_up_of_number && *emptyh != (*numberh)+1;
-
-        condition_stop_down = zero_up_of_number && targeth < *numberh && *emptyh == (*numberh)-1;
-        condition_stop_right = zero_left_of_number && targetw < *numberw && *emptyw == (*numberw)-1;
-        condition_stop_up = zero_down_of_number && targeth > *numberh && *emptyh == (*numberh)+1;
-        condition_stop_left = zero_right_of_number && targetw > *numberw && *emptyw == (*numberw)+1;
-
-        if (condition_stop_down) {
-            // just up, so move zero down
-            *numberh = (*numberh) - 1;
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            break;
-        }
-        if (condition_stop_right) {
-            // just left, so move zero right
-            *numberw = (*numberw) - 1;
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            break;
-        }
-        if (condition_stop_up) {
-            // just down, so move zero up
-            *numberh = (*numberh) + 1;
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            break;
-        }
-        if (condition_stop_left) {
-            // just right, so move zero left
-            *numberw = (*numberw) + 1;
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            break;
-        }
-
-        if (*emptyw == targetw && zero_down_of_number) {
-            walk_zero_around(boardp, emptyh, emptyw, DIRECTION_UP);
-            continue;
-        }
-
-        if (*emptyh == targeth && zero_right_of_number) {
-            walk_zero_around(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            continue;
-        }
-
-        if (*emptyh == targeth && zero_left_of_number) {
-            walk_zero_around(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            continue;
-        }
-
-        if (*emptyw == targetw && zero_up_of_number) {
-            walk_zero_around(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            continue;
-        }
-
-        if (zero_go_left) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_LEFT);
-            continue;
-        }
-        if (zero_go_right) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_RIGHT);
-            continue;
-        }
-        if (zero_go_down) {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_DOWN);
-            continue;
-        }
-        if (zero_go_up)  {
-            number_go_direction(boardp, emptyh, emptyw, DIRECTION_UP);
-            continue;
+            number_go_direction(boardp, zero, DIRECTION_LEFT);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_DOWN);
+            number_go_direction(boardp, zero, DIRECTION_RIGHT);
         }
     }
 }

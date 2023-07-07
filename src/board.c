@@ -10,17 +10,16 @@
 
 static void do_one_two_three(uint8* boardp, uint8* targetp)
 {
-    uint8 emptyh, emptyw;
-    find_position(boardp, &emptyh, &emptyw, 0);
+    Point zero;
+    find_position(boardp, &zero, 0);
     print_board(boardp);
     for (uint8 i = 1; i < BOARD_HEIGHT * BOARD_WIDTH; ++i) {
-        uint8 numberh, numberw;
-        uint8 targeth, targetw;
-        find_position(targetp, &targeth, &targetw, i);
-        find_position(boardp, &numberh, &numberw, i);
-        while (numberh != targeth || numberw != targetw) {
-            move_zero_to_number(boardp, numberh, numberw, &emptyh, &emptyw);
-            do_move(boardp, targetp, targeth, targetw, &numberh, &numberw, &emptyh, &emptyw);
+        Point number, target;
+        find_position(targetp, &target, i);
+        find_position(boardp, &number, i);
+        while (number.height != target.height || number.width != target.width) {
+            move_zero_to_number(boardp, number,  &zero);
+            do_move(boardp, targetp, &target, &number, &zero);
             print_board(boardp);
         }
 

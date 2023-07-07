@@ -15,6 +15,12 @@ typedef enum {
     DIRECTION_DOWN,
     DIRECTION_LEFT,
     DIRECTION_RIGHT
-} enum_direction;
+} EnumDirection;
+
+typedef struct {
+    uint8 width;
+    uint8 height;
+    bool is_at_target;
+} Point;
 
 #endif //ALTPRO_COMMON_H
