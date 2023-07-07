@@ -7,7 +7,7 @@
 
 #include "../common/common.h"
 
-void number_go_direction(uint8* boardp, Point* weight, EnumDirection direction);
-void find_position(const uint8* cp, Point* position, const uint8 needle);
+void number_go_direction(uint8 **board, Point *point, EnumDirection direction);
+void find_position(uint8 **board, Point *position, const uint8 needle);
 
 #endif //ALTPRO_OPERATION_H

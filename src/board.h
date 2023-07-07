@@ -8,7 +8,9 @@
 #include <stdbool.h>
 #include "common/common.h"
 
-void sort_board(uint8* boardp, uint8* targetp);
-void print_board(const uint8* cp);
+void allocateBoards(uint8 ***board, uint8 ***target_board);
+void deallocateBoards(uint8 ***board, uint8 ***target_board);
+void print_board(uint8 **cp);
+void sort_board(uint8 **board, uint8 **target_board);
 
 #endif //ALTPRO_BOARD_H

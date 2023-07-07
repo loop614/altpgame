@@ -8,7 +8,7 @@
 #define BOARD_WIDTH 4
 #define BOARD_HEIGHT 4
 
-typedef char uint8;
+typedef unsigned char uint8;
 
 typedef enum {
     DIRECTION_UP,
@@ -20,7 +20,6 @@ typedef enum {
 typedef struct {
     uint8 width;
     uint8 height;
-    bool is_at_target;
 } Point;
 
 #endif //ALTPRO_COMMON_H
