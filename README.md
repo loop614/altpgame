@@ -4,12 +4,20 @@
 - only moves with 0 allowed
 
 ## Requirements
-- cmake, build-essentials
+- cmake, ninja, build-essentials
+
+## Status
+- numbers 1 and 2 work
+- for number 3 check for numbers already in place
+- make 'snake' pattern players use to play game
 
 ## Quick Start
-- cmake --build cmake-build-debug --target all -j 4
-- ./cmake-build-debug/altpro
-
+```console
+$ mkdir cmake-build-debug
+$ cmake -B cmake-build-debug/ -G Ninja .
+$ ninja -C cmake-build-debug/
+$ ./altpro
+```
 
 ### Board:
 - 15   14   13   12
